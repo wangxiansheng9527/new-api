@@ -27,11 +27,16 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
       console: true,
       pricing: true,
       docs: true,
+      openClawConfig: true,
       about: true,
+      terms: true,
     };
 
     // 使用传入的配置或默认配置
-    const modules = headerNavModules || defaultModules;
+    const modules = {
+      ...defaultModules,
+      ...(headerNavModules || {}),
+    };
 
     const allLinks = [
       {
@@ -60,9 +65,19 @@ export const useNavigation = (t, docsLink, headerNavModules) => {
           ]
         : []),
       {
-        text: t('关于'),
+        text: t('龙虾一键配置'),
+        itemKey: 'openClawConfig',
+        to: '/openclaw-config',
+      },
+      {
+        text: t('关于本站'),
         itemKey: 'about',
         to: '/about',
+      },
+      {
+        text: t('用户协议'),
+        itemKey: 'terms',
+        to: '/user-agreement',
       },
     ];
 

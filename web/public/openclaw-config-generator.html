@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw 配置生成器</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #222; min-height: 100vh; padding: 2rem 1rem; }
+.container { max-width: 760px; margin: 0 auto; }
+h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.5rem; }
+.subtitle { font-size: 14px; color: #666; margin-bottom: 2rem; }
+.card { background: #fff; border: 0.5px solid #ddd; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; }
+.card h2 { font-size: 15px; font-weight: 500; margin-bottom: 1rem; color: #333; }
+label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; margin-top: 12px; }
+label:first-of-type { margin-top: 0; }
+input, select, textarea { width: 100%; padding: 8px 10px; border: 0.5px solid #ccc; border-radius: 8px; font-size: 14px; background: #fff; color: #222; outline: none; }
+input:focus, select:focus, textarea:focus { border-color: #888; }
+textarea { resize: vertical; min-height: 80px; font-family: monospace; font-size: 12px; }
+.drop-zone { border: 1.5px dashed #bbb; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; color: #888; font-size: 14px; transition: border-color 0.2s; }
+.drop-zone:hover, .drop-zone.drag-over { border-color: #555; color: #444; }
+.drop-zone.loaded { border-color: #4a90d9; color: #4a90d9; background: #f0f7ff; }
+.btn { display: inline-block; padding: 10px 24px; background: #222; color: #fff; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; margin-top: 1rem; }
+.btn:hover { background: #444; }
+.btn-outline { background: transparent; color: #222; border: 0.5px solid #ccc; margin-left: 8px; }
+.btn-outline:hover { background: #f5f5f5; }
+.output-area { display: none; }
+.output-area.visible { display: block; }
+.code-box { background: #1e1e1e; color: #d4d4d4; border-radius: 8px; padding: 1rem; font-family: monospace; font-size: 12px; overflow: auto; max-height: 400px; white-space: pre; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+.tag-ok { background: #e8f5e9; color: #2e7d32; }
+.tag-warn { background: #fff3e0; color: #e65100; }
+.row { display: flex; gap: 12px; }
+.row > div { flex: 1; }
+.info-box { background: #fff8e1; border: 0.5px solid #ffe082; border-radius: 8px; padding: 12px; font-size: 13px; color: #5d4037; margin-top: 12px; }
+.info-box strong { font-weight: 500; }
+.model-checks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.model-chip { padding: 4px 10px; border-radius: 20px; font-size: 12px; border: 0.5px solid #ddd; cursor: pointer; user-select: none; }
+.model-chip.selected { background: #222; color: #fff; border-color: #222; }
+.step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.step-num { width: 22px; height: 22px; border-radius: 50%; background: #222; color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+.step p { font-size: 13px; color: #555; line-height: 1.5; }
+.step p code { background: #f0f0f0; padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>OpenClaw 配置生成器</h1>
+  <p class="subtitle">上传原始配置文件，填入 samer 的 API Key，一键生成标准配置</p>
+
+  <div class="card">
+    <h2>第一步：上传配置文件</h2>
+    <div class="drop-zone" id="dropZone">
+      点击上传或拖拽配置文件（openclaw.json / .md）
+      <input type="file" id="fileInput" accept=".json,.md" style="display:none">
+    </div>
+    <div id="fileStatus" style="margin-top:8px; font-size:13px; color:#888;"></div>
+  </div>
+
+  <div class="card">
+    <h2>第二步：填入 Samer 配置</h2>
+    <label>API Key</label>
+    <input type="text" id="apiKey" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx">
+    <label>Base URL</label>
+    <input type="text" id="baseUrl" value="https://new.samerwang.dpdns.org/v1">
+    <label>Provider 名称</label>
+    <input type="text" id="providerName" value="samerwang">
+    <label>默认模型</label>
+    <select id="defaultModel">
+      <option value="qwen3.5-plus">qwen3.5-plus</option>
+      <option value="glm-5" selected>glm-5</option>
+      <option value="glm-4.7">glm-4.7</option>
+      <option value="qwen3-max-2026-01-23">qwen3-max-2026-01-23</option>
+      <option value="qwen3-coder-next">qwen3-coder-next</option>
+      <option value="qwen3-coder-plus">qwen3-coder-plus</option>
+      <option value="MiniMax-M2.5">MiniMax-M2.5</option>
+      <option value="kimi-k2.5">kimi-k2.5</option>
+    </select>
+    <label>包含的模型（点击选择）</label>
+    <div class="model-checks" id="modelChecks"></div>
+  </div>
+
+  <div class="card">
+    <h2>第三步：选择处理方式</h2>
+    <label>如何处理原有 providers</label>
+    <select id="providerMode">
+      <option value="replace_all">替换所有 provider（只保留 samer）</option>
+      <option value="add_new" selected>新增 samer provider（保留原有）</option>
+      <option value="replace_modelstudio">替换 modelstudio 的 url 和 key</option>
+    </select>
+  </div>
+
+  <button class="btn" onclick="generate()">生成配置文件</button>
+  <button class="btn btn-outline" onclick="reset()">重置</button>
+
+  <div class="output-area" id="outputArea" style="margin-top:1.5rem;">
+    <div class="card">
+      <h2>生成结果 <span class="tag tag-ok" id="resultTag">成功</span></h2>
+      <div class="code-box" id="outputCode"></div>
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn" onclick="downloadConfig()">下载配置文件</button>
+        <button class="btn btn-outline" onclick="copyConfig()">复制内容</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>替换后还需要做</h2>
+      <div class="step"><div class="step-num">1</div><p>将下载的文件覆盖到 <code>~/.openclaw/openclaw.json</code></p></div>
+      <div class="step"><div class="step-num">3</div><p>重启 OpenClaw：<code>openclaw gateway restart</code></p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ALL_MODELS = [
+  { id: "qwen3.5-plus", input: ["text","image"], ctx: 1000000, max: 65536, reasoning: false },
+  { id: "qwen3-max-2026-01-23", input: ["text"], ctx: 262144, max: 65536, reasoning: false },
+  { id: "qwen3-coder-next", input: ["text"], ctx: 262144, max: 65536, reasoning: false },
+  { id: "qwen3-coder-plus", input: ["text"], ctx: 1000000, max: 65536, reasoning: false },
+  { id: "MiniMax-M2.5", input: ["text"], ctx: 1000000, max: 65536, reasoning: false },
+  { id: "glm-5", input: ["text"], ctx: 202752, max: 16384, reasoning: false },
+  { id: "glm-4.7", input: ["text"], ctx: 202752, max: 16384, reasoning: false },
+  { id: "kimi-k2.5", input: ["text","image"], ctx: 262144, max: 32768, reasoning: false }
+];
+
+let originalConfig = null;
+let generatedConfig = null;
+let selectedModels = new Set(ALL_MODELS.map(m => m.id));
+
+function initModelChips() {
+  const container = document.getElementById('modelChecks');
+  container.innerHTML = '';
+  ALL_MODELS.forEach(m => {
+    const chip = document.createElement('div');
+    chip.className = 'model-chip selected';
+    chip.textContent = m.id;
+    chip.dataset.id = m.id;
+    chip.onclick = () => {
+      if (selectedModels.has(m.id)) {
+        selectedModels.delete(m.id);
+        chip.classList.remove('selected');
+      } else {
+        selectedModels.add(m.id);
+        chip.classList.add('selected');
+      }
+    };
+    container.appendChild(chip);
+  });
+}
+
+initModelChips();
+
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.onclick = () => fileInput.click();
+dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); };
+dropZone.ondragleave = () => dropZone.classList.remove('drag-over');
+dropZone.ondrop = (e) => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); };
+fileInput.onchange = (e) => handleFile(e.target.files[0]);
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      let text = e.target.result;
+      text = text.replace(/\u00a0/g, ' ');
+      originalConfig = JSON.parse(text);
+      dropZone.classList.add('loaded');
+      dropZone.textContent = '已加载：' + file.name;
+      document.getElementById('fileStatus').textContent = '检测到 providers：' + Object.keys(originalConfig.models?.providers || {}).join('、');
+    } catch(err) {
+      document.getElementById('fileStatus').textContent = '解析失败：' + err.message;
+    }
+  };
+  reader.readAsText(file);
+}
+
+function buildSamerwangProvider(apiKey, baseUrl, providerName) {
+  const models = ALL_MODELS.filter(m => selectedModels.has(m.id)).map(m => ({
+    id: m.id,
+    name: m.id,
+    reasoning: m.reasoning,
+    input: m.input,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: m.ctx,
+    maxTokens: m.max
+  }));
+  return {
+    baseUrl,
+    apiKey,
+    api: "openai-completions",
+    models
+  };
+}
+
+function generate() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const baseUrl = document.getElementById('baseUrl').value.trim();
+  const providerName = document.getElementById('providerName').value.trim();
+  const defaultModel = document.getElementById('defaultModel').value;
+  const mode = document.getElementById('providerMode').value;
+
+  if (!apiKey) { alert('请填入 API Key'); return; }
+  if (!baseUrl) { alert('请填入 Base URL'); return; }
+  if (selectedModels.size === 0) { alert('请至少选择一个模型'); return; }
+
+  let config = originalConfig ? JSON.parse(JSON.stringify(originalConfig)) : {
+    meta: { lastTouchedVersion: "2026.4.2", lastTouchedAt: new Date().toISOString() },
+    models: { mode: "merge", providers: {} },
+    agents: { defaults: { model: { primary: "" }, models: {}, workspace: "~/.openclaw/workspace", compaction: { mode: "safeguard" } } },
+    auth: { profiles: {} },
+    gateway: { mode: "local", auth: { mode: "token", token: "your-token-here" } }
+  };
+
+  const provider = buildSamerwangProvider(apiKey, baseUrl, providerName);
+
+  if (mode === 'replace_all') {
+    config.models.providers = { [providerName]: provider };
+    config.agents.defaults.models = {};
+    config.auth.profiles = {};
+  } else if (mode === 'add_new') {
+    config.models.providers[providerName] = provider;
+  } else if (mode === 'replace_modelstudio') {
+    if (config.models.providers.modelstudio) {
+      config.models.providers.modelstudio.baseUrl = baseUrl;
+      config.models.providers.modelstudio.apiKey = apiKey;
+    } else {
+      config.models.providers[providerName] = provider;
+    }
+  }
+
+  const pName = mode === 'replace_modelstudio' ? 'modelstudio' : providerName;
+
+  ALL_MODELS.filter(m => selectedModels.has(m.id)).forEach(m => {
+    config.agents.defaults.models[pName + '/' + m.id] = m.id === 'qwen3.5-plus' ? { alias: 'Qwen' } : {};
+  });
+
+  config.agents.defaults.model.primary = pName + '/' + defaultModel;
+
+  if (!config.auth) config.auth = { profiles: {} };
+  config.auth.profiles[pName + ':default'] = { provider: pName, mode: "api_key" };
+
+  generatedConfig = config;
+
+  const output = JSON.stringify(config, null, 2);
+  document.getElementById('outputCode').textContent = output;
+  document.getElementById('outputArea').classList.add('visible');
+}
+
+function downloadConfig() {
+  if (!generatedConfig) return;
+  const blob = new Blob([JSON.stringify(generatedConfig, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'openclaw.json';
+  a.click();
+}
+
+function copyConfig() {
+  if (!generatedConfig) return;
+  navigator.clipboard.writeText(JSON.stringify(generatedConfig, null, 2))
+    .then(() => alert('已复制到剪贴板'));
+}
+
+function reset() {
+  originalConfig = null;
+  generatedConfig = null;
+  document.getElementById('dropZone').className = 'drop-zone';
+  document.getElementById('dropZone').textContent = '点击上传或拖拽配置文件（openclaw.json / .md）';
+  document.getElementById('fileStatus').textContent = '';
+  document.getElementById('apiKey').value = '';
+  document.getElementById('outputArea').classList.remove('visible');
+  selectedModels = new Set(ALL_MODELS.map(m => m.id));
+  initModelChips();
+}
+</script>
+</body>
+</html>
